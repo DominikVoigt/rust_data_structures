@@ -1,5 +1,4 @@
-use std::borrow::Borrow;
-use std::cell::Ref;
+
 use std::cell::RefCell;
 use std::fmt::Display;
 use std::rc::Rc;
@@ -88,29 +87,60 @@ impl <T: Clone + PartialEq + Display> CopyableDoubleLinkedList<T> {
         if index >= self.length  {
             return None;
         }
-        if index < self.length / 2 {
-            self.remove_node_at_index_from_start(index)
-        } else {
-            self.remove_node_at_index_from_end(index)
-        }
+        return self.remove_node_at_index_from_start(index);
     }
 
     fn remove_node_at_index_from_start(&mut self, index: u32) -> Option<T> {
+        if index == 0 {
+            return Some(self.remove_head());
+        } else if index == self.length - 1 {
+            return Some(self.remove_tail());
+        }
+        self.length = self.length - 1;
         if let Some(head) = &self.head {
             let mut node = Rc::clone(head);
             // iterate to node
-            for i in 1..=index {
+            for _i in 1..=index {
+                // 
                 let next_node = Rc::clone(RefCell::borrow(&node).child_node.as_ref().unwrap());
                 node = next_node;
             }
-            None
+            // node RC now points towards the correct node with the refcell, since it is neither the head or tail, it has to have a parent node and child node
+            let node_ref = RefCell::borrow(&node);
+            let child_ref = node_ref.child_node.as_ref().unwrap();
+            let parent_node = node_ref.parent_node.as_ref().unwrap().upgrade().unwrap();
+            parent_node.borrow_mut().child_node = Some(Rc::clone(child_ref));
+            child_ref.borrow_mut().parent_node = Some(Rc::downgrade(&parent_node));
+            Some(node_ref.data.clone())
             // TODO: Implement deletion of the node, be aware: we have to handle the case where we delete the first and/or last node
         } else {
             None
         }
     }
 
+    fn remove_head(&mut self) -> T {
+        self.length = self.length - 1;
+        let current_head = self.head.as_ref().unwrap();
+        let data = RefCell::borrow(current_head).data.clone();
+        let second_node = RefCell::borrow(current_head).child_node.as_ref().map(Rc::clone);
+        match second_node {
+            Some(second_node) => {
+                self.head = Some(second_node);
+            },
+            None => {
+                self.head = None;
+            }
+        }
+        return data;
+    }
+
+
+    fn remove_tail(&mut self) -> T {
+        self.length = self.length - 1;
+        todo!()
+    }
+    
     fn remove_node_at_index_from_end(&mut self, index: u32) -> Option<T> {
-        None
+        todo!()
     }
 }
