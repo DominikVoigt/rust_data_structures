@@ -26,9 +26,34 @@ impl <T: Clone + PartialEq  + Display> Node<T> {
     }
 }
 
+/*
 impl <T: Clone + PartialEq + Display> Drop for Node<T> {
     fn drop(&mut self) {
         println!("Dropping Node with value {}", self.data.clone());
+    }
+}
+ */
+
+impl <T: Clone + PartialEq + Display> Drop for CopyableDoubleLinkedList<T> {
+    /*
+     * Since the drop would happen recursively for our list (as drop is called on the smart pointers)   
+     */
+    fn drop(&mut self) {
+        if self.tail.is_none() || self.head.is_none() {
+            println!("List is empty, nothing to drop");
+            return
+        }
+        // Take the tail node from the list
+        let head = std::mem::replace(&mut self.head, Option::None);
+        let head = head.unwrap();
+        // Take away next pointer from head, now head will be dropped, but no recursion occurs.
+        let mut next = std::mem::replace(&mut RefCell::borrow_mut(&head).child_node, None);
+        // println!("after dropping head");
+        while next.is_some() {
+            let next_rc = next.unwrap();
+            next = std::mem::replace(&mut RefCell::borrow_mut(&next_rc).child_node, None);
+        }
+        // tail will be dropped automatically
     }
 }
 
@@ -83,18 +108,18 @@ impl <T: Clone + PartialEq + Display> CopyableDoubleLinkedList<T> {
         }
     }
 
-    pub fn remove_node_at_index(&mut self, index: u32) -> Option<T> {
+    pub fn remove_node_at(&mut self, index: u32) -> Option<T> {
         if index >= self.length  {
             return None;
         }
-        return self.remove_node_at_index_from_start(index);
+        return self.remove_node_from_start_at(index);
     }
 
-    fn remove_node_at_index_from_start(&mut self, index: u32) -> Option<T> {
+    fn remove_node_from_start_at(&mut self, index: u32) -> Option<T> {
         if index == 0 {
-            return Some(self.remove_head());
+            return self.remove_head();
         } else if index == self.length - 1 {
-            return Some(self.remove_tail());
+            return self.remove_tail();
         }
         self.length = self.length - 1;
         if let Some(head) = &self.head {
@@ -118,7 +143,10 @@ impl <T: Clone + PartialEq + Display> CopyableDoubleLinkedList<T> {
         }
     }
 
-    fn remove_head(&mut self) -> T {
+    fn remove_head(&mut self) -> Option<T> {
+        if self.length == 0 {
+            return None;
+        }
         self.length = self.length - 1;
         let current_head = self.head.as_ref().unwrap();
         let data = RefCell::borrow(current_head).data.clone();
@@ -131,16 +159,16 @@ impl <T: Clone + PartialEq + Display> CopyableDoubleLinkedList<T> {
                 self.head = None;
             }
         }
-        return data;
+        return Some(data);
     }
 
 
-    fn remove_tail(&mut self) -> T {
+    fn remove_tail(&mut self) -> Option<T> {
         self.length = self.length - 1;
         todo!()
     }
     
-    fn remove_node_at_index_from_end(&mut self, index: u32) -> Option<T> {
+    fn remove_node_from_end_at(&mut self, index: u32) -> Option<T> {
         todo!()
     }
 }
